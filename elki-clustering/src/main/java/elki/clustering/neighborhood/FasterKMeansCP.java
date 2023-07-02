@@ -20,10 +20,7 @@ import elki.math.linearalgebra.VMath;
 import elki.utilities.optionhandling.parameterization.Parameterization;
 import elki.utilities.optionhandling.parameters.ClassParameter;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static elki.clustering.neighborhood.helper.ClosedNeighborhoodSetGenerator.CNS_GENERATOR_ID;
 
@@ -32,6 +29,8 @@ import static elki.clustering.neighborhood.helper.ClosedNeighborhoodSetGenerator
  * @bug Currently not always converging.
  */
 public class FasterKMeansCP<V extends NumberVector> extends AbstractKMeans<V, KMeansModel> {
+
+    private double EPSILON = Math.pow(10, -10);
 
     private static final Logging LOG = Logging.getLogger(FasterKMeansCP.class);
     private final ClosedNeighborhoodSetGenerator<V> closedNeighborhoodSetGenerator;
@@ -110,13 +109,32 @@ public class FasterKMeansCP<V extends NumberVector> extends AbstractKMeans<V, KM
 
             CNSrepresentor[] representors = new CNSrepresentor[closedNeighborhoodSets.length];
 
-            for(int currentCNS = 0; currentCNS < closedNeighborhoodSets.length; currentCNS++  ){
+            for(int currentCNSindex = 0; currentCNSindex < closedNeighborhoodSets.length; currentCNSindex++  ){
                 double[] sum = new double[dim];
-                int CNSsize =  closedNeighborhoodSets[currentCNS].size();
-                for(DBIDIter element = closedNeighborhoodSets[currentCNS].iter(); element.valid(); element.advance()){
+                int currentCNSsize =  closedNeighborhoodSets[currentCNSindex].size();
+                for(DBIDIter element = closedNeighborhoodSets[currentCNSindex].iter(); element.valid(); element.advance()){
                     VMath.plusEquals(sum, relation.get(element).toArray());
                 }
-                representors[currentCNS] = new CNSrepresentor(VMath.times(sum, 1.0 / CNSsize), sum, CNSsize, closedNeighborhoodSets[currentCNS]);
+                double[] avg = VMath.times(sum, 1.0 / currentCNSsize);
+                double[] roundedSum = VMath.times(avg, currentCNSsize);
+                double[] diff = VMath.minus(sum, roundedSum);
+                if(Arrays.stream(diff).sum() > 0){
+                    LOG.verbose("Difference for sum and rounded sum");
+                }
+                CNSrepresentor rep =  new CNSrepresentor(avg, roundedSum, currentCNSsize, closedNeighborhoodSets[currentCNSindex]);
+
+                double[] sumN = rep.elementSum;
+                double[] slowSum = VMath.times(rep.cnsMean, rep.size);
+
+                if (!Arrays.equals(sumN,slowSum)){
+                    double[] diffN = VMath.minus(sum, slowSum);
+                    LOG.verbose("Difference of "+ Arrays.stream(diffN).sum());
+                }
+
+
+                representors[currentCNSindex] = rep;
+
+
             }
 
             return representors;
@@ -126,25 +144,47 @@ public class FasterKMeansCP<V extends NumberVector> extends AbstractKMeans<V, KM
             final int k = means.length;
             double[][] newMeans = new double[k][];
             for(int clusterIndex = 0; clusterIndex < k; clusterIndex++){
-                List<CNSrepresentor> cluster = clusters.get(clusterIndex);
-                if(cluster.size() == 0){
+                List<CNSrepresentor> currentCluster = clusters.get(clusterIndex);
+                if(currentCluster.size() == 0){
                     newMeans[clusterIndex] = means[clusterIndex];
                     continue;
                 }
 
-                int amountElements = cluster.get(0).size;
-                double[] sum = cluster.get(0).elementSum;
+                CNSrepresentor firstCNS = currentCluster.get(0);
+                int amountElements = firstCNS.size;
 
-                for(int i = 1; i < cluster.size(); i++ ){
-                    VMath.plusEquals(sum, cluster.get(i).elementSum);
-                    amountElements += cluster.get(i).size;
+                double[] slowSum = VMath.times(firstCNS.cnsMean, firstCNS.size);
+                double[] sum = firstCNS.elementSum;
+                //double[] sum = slowSum;
+
+                if (!Arrays.equals(firstCNS.elementSum, slowSum)){
+                    double[] diff = VMath.minus(firstCNS.elementSum, slowSum);
+                    LOG.verbose("Difference of "+ Arrays.stream(diff).sum());
                 }
-                newMeans[clusterIndex] = VMath.timesEquals(sum, 1.0/ amountElements);
+
+                for(int i = 1; i < currentCluster.size(); i++ ){
+                    CNSrepresentor currentCNS = currentCluster.get(i);
+
+                    double[] cnsSum = currentCNS.elementSum;
+                    amountElements += currentCNS.size;
+
+                    slowSum = VMath.times(currentCNS.cnsMean, currentCNS.size);
+
+
+                    VMath.plusEquals(sum, cnsSum );
+                    //VMath.plusEquals(sum, slowSum );
+
+                    if (!Arrays.equals(cnsSum, slowSum)){
+                        double[] diff = VMath.minus(cnsSum, slowSum);
+                        LOG.verbose("Difference of "+ Arrays.stream(diff).sum());
+                    }
+                }
+                newMeans[clusterIndex] = VMath.times(sum, 1.0/ amountElements);
             }
             return newMeans;
         }
 
-        protected int assignToNearestCluster(CNSrepresentor[] representatives, double[][] means) {
+        protected int assignToNearestCluster(CNSrepresentor[] representatives, double[][] clusterMeans) {
             int changed = 0;
 
             for(List<CNSrepresentor> cluster : CnsClusters){
@@ -154,19 +194,26 @@ public class FasterKMeansCP<V extends NumberVector> extends AbstractKMeans<V, KM
             for(CNSrepresentor representative: representatives) {
                 NumberVector cnsMean = DoubleVector.wrap(representative.cnsMean);
 
-                double minDist = distance.distance(cnsMean, DoubleVector.wrap(means[0]));
-                int minIndex = 0;
-                for (int i = 1; i < k; i++) {
-                    double dist = distance.distance(cnsMean, DoubleVector.wrap(means[i]));
-                    if (dist < minDist) {
+                int minIndex = cnsAssignment.getOrDefault(representative, 0);
+                double minDist = distance.distance(cnsMean, DoubleVector.wrap(clusterMeans[minIndex]));
+
+
+                for (int i = 0; i < k; i++) {
+                    double dist = distance.distance(cnsMean, DoubleVector.wrap(clusterMeans[i]));
+                    double diff = minDist - dist;
+                    if (diff > EPSILON) {
+                        LOG.verbose("Improvement of " + diff);
                         minIndex = i;
                         minDist = dist;
                     }
                 }
                 varsum[minIndex] += isSquared ? minDist : (minDist * minDist);
                 CnsClusters.get(minIndex).add(representative);
-                if( !((Integer)minIndex).equals(cnsAssignment.put(representative, minIndex)) ) {
+                Integer oldIndex = cnsAssignment.put(representative, minIndex);
+
+                if( !((Integer)minIndex).equals(oldIndex) ) {
                     changed += representative.size;
+                    //LOG.verbose("old index: " + oldIndex + ", new Index" + minIndex);
                 }
             }
             return changed;

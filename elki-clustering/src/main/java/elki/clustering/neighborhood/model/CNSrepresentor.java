@@ -3,12 +3,12 @@ package elki.clustering.neighborhood.model;
 import elki.database.ids.DBIDs;
 
 public class CNSrepresentor {
-    public int size;
-    public double[] cnsMean;
+    public final int size;
+    public final double[] cnsMean;
 
-    public double[] elementSum;
+    public final double[] elementSum;
 
-    public DBIDs cnsElements;
+    public final DBIDs cnsElements;
 
     public CNSrepresentor(double[] cnsMean, double[] elementSum, int size, DBIDs cnsElements) {
         this.cnsMean = cnsMean;

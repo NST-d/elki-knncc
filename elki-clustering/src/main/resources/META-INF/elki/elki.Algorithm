@@ -116,4 +116,5 @@ elki.clustering.trivial.ByLabelOrAllInOneClustering
 elki.clustering.neighborhood.Enforce
 elki.clustering.neighborhood.KMeansCP
 elki.clustering.neighborhood.FastKMeansCP
+elki.clustering.neighborhood.FasterKMeansCP
 elki.clustering.neighborhood.CNSClustering
