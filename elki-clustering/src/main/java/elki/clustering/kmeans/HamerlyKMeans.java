@@ -97,22 +97,6 @@ public class HamerlyKMeans<V extends NumberVector> extends SimplifiedHamerlyKMea
     }
 
     @Override
-    protected int iterate(int iteration) {
-      if(iteration == 1) {
-        return initialAssignToNearestCluster();
-      }
-      meansFromSums(newmeans, sums, means);
-      movedDistance(means, newmeans, sep);
-      updateBounds(sep);
-      copyMeans(newmeans, means);
-      return assignToNearestCluster();
-    }
-
-    /**
-     * Perform initial cluster assignment.
-     *
-     * @return Number of changes (i.e., relation size)
-     */
     protected int initialAssignToNearestCluster() {
       assert k == means.length;
       double[][] cdist = new double[k][k];
