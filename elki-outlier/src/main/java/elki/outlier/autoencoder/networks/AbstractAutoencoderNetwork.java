@@ -6,7 +6,10 @@ import elki.database.ids.DBIDArrayIter;
 import elki.database.ids.DBIDUtil;
 import elki.database.relation.Relation;
 import elki.logging.Logging;
+import elki.logging.statistics.AtomicLongCounter;
+import elki.math.geometry.XYCurve;
 import elki.math.linearalgebra.VMath;
+import elki.result.Metadata;
 import elki.utilities.random.RandomFactory;
 import jdk.internal.misc.VM;
 
@@ -14,6 +17,8 @@ import java.util.Arrays;
 import java.util.Random;
 
 public abstract class AbstractAutoencoderNetwork<V extends NumberVector> implements TrainableNetwork<V, Double> {
+
+    static AtomicLongCounter networkNumber = new AtomicLongCounter(AbstractAutoencoderNetwork.class.toString());
     protected final int NUM_LAYERS;
 
     protected NetworkWeights networkWeights;
@@ -55,6 +60,8 @@ public abstract class AbstractAutoencoderNetwork<V extends NumberVector> impleme
         ArrayModifiableDBIDs dbids = DBIDUtil.newArray(trainingData.getDBIDs());
         DBIDUtil.randomShuffle(dbids, random);
 
+        XYCurve trainingError = new XYCurve("Iteration network " + networkNumber.increment(),"Error");
+
         for (int iteration = 0; iteration < maxIterations; iteration++) {
             DBIDArrayIter iter = dbids.iter();
 
@@ -81,6 +88,8 @@ public abstract class AbstractAutoencoderNetwork<V extends NumberVector> impleme
             if (iteration == maxIterations - 1) {
                 getLog().verbose("Training error in iteration " + iteration + " with " + (int) adaptiveSize + " samples: " + cumulativeTrainingError / (int) adaptiveSize);
             }
+            trainingError.add(iteration, cumulativeTrainingError/(int)adaptiveSize);
+
 
             for (int i = 0; i < NUM_LAYERS - 1; i++) {
                 VMath.timesEquals(batchGradient.weight[i], 1.0 / (int) adaptiveSize);
@@ -121,6 +130,8 @@ public abstract class AbstractAutoencoderNetwork<V extends NumberVector> impleme
             adaptiveSize *= adaptiveFactor;
             adaptiveSize = Math.min(adaptiveSize, trainingData.size() * maxSize);
         }
+
+        Metadata.hierarchyOf(trainingData).addChild(trainingError);
 
     }
 
