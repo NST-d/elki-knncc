@@ -475,6 +475,53 @@ public final class VMath {
   }
 
   /**
+   * Hadamard product of two vectors v1 * v2 with the same dimensions
+   * @param v1 first vector
+   * @param v2 second vector
+   * @return v1 * v2
+   */
+  public static double[] times(final double[] v1, final double[] v2){
+    assert v1.length == v2.length : ERR_VEC_DIMENSIONS;
+    final double[] v = new double[v1.length];
+    for(int i = 0; i < v1.length; i++){
+      v[i] = v1[i] * v2[i];
+    }
+    return v;
+  }
+
+  public static double[][] hadamard(final double[][] m1, final double[][] m2){
+    assert m1.length == m2.length;
+    final double[][] m = new double[m1.length][];
+    for (int i = 0; i < m1.length; i++){
+      assert m1[i].length == m2[i].length;
+      m[i] = new double[m1[i].length];
+      for(int j = 0; j < m1[i].length; j++){
+        m[i][j] = m1[i][j] * m2[i][j];
+      }
+    }
+    return m;
+  }
+
+  public static double[][] root(final double[][] m1, final double eps){
+    final double[][] m = new double[m1.length][m1[0].length];
+    for (int i = 0; i < m1.length; i++){
+      for (int j = 0; j < m1[i].length; j++){
+        m[i][j] = Math.sqrt(m1[i][j] + eps);
+      }
+    }
+    return m;
+  }
+
+  public static double[][] divideEquals(final double s1, final double[][] m1){
+    for(int i = 0; i < m1.length; i++){
+      for(int j = 0; j < m1[i].length; j++){
+        m1[i][j] = s1 / m1[i][j];
+      }
+    }
+    return m1;
+  }
+
+  /**
    * Multiply component-wise v1 = v1 * s1,
    * overwriting the vector v1.
    *

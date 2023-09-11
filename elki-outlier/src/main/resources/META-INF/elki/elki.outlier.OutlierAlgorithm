@@ -63,3 +63,4 @@ elki.outlier.trivial.ByLabelOutlier
 elki.outlier.trivial.TrivialAllOutlier
 elki.outlier.trivial.TrivialNoOutlier
 elki.outlier.trivial.TrivialAverageCoordinateOutlier
+elki.outlier.autoencoder.Autoencoder
