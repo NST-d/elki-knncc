@@ -151,8 +151,8 @@ public class AutoencoderLayers3 <V extends NumberVector> implements TrainableNet
                 RMSprop[0] = VMath.plusTimes(VMath.times(RMSprop[0], rho), VMath.hadamard(l1WeightGradient, l1WeightGradient), 1- rho);
                 RMSprop[1] = VMath.plusTimes(VMath.times(RMSprop[1], rho), VMath.hadamard(l2WeightGradient, l2WeightGradient), 1- rho);
 
-                VMath.plusEquals(IterationGradient[0], VMath.hadamard(l1WeightGradient, VMath.divideEquals(learningRate, VMath.root(RMSprop[0], 0.00001) )));
-                VMath.plusEquals(IterationGradient[1], VMath.hadamard(l2WeightGradient, VMath.divideEquals(learningRate, VMath.root(RMSprop[1], 0.00001) )));
+                VMath.plusEquals(IterationGradient[0], VMath.hadamard(l1WeightGradient, NetworkMathHelper.divideEquals(learningRate, VMath.root(RMSprop[0], 0.00001) )));
+                VMath.plusEquals(IterationGradient[1], VMath.hadamard(l2WeightGradient, NetworkMathHelper.divideEquals(learningRate, VMath.root(RMSprop[1], 0.00001) )));
 
                 iter.advance();
             }

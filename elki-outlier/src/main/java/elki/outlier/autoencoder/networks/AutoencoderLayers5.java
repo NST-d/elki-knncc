@@ -176,10 +176,10 @@ public class AutoencoderLayers5<V extends NumberVector> implements TrainableNetw
                 RMSprop[2] = VMath.plusTimes(VMath.times(RMSprop[2], rho), VMath.hadamard(l3WeightGradient, l3WeightGradient), 1- rho);
                 RMSprop[3] = VMath.plusTimes(VMath.times(RMSprop[3], rho), VMath.hadamard(l4WeightGradient, l4WeightGradient), 1- rho);
 
-                VMath.plusEquals(IterationGradient[0], VMath.hadamard(l1WeightGradient, VMath.divideEquals(learningRate, VMath.root(RMSprop[0], 0.00001) )));
-                VMath.plusEquals(IterationGradient[1], VMath.hadamard(l2WeightGradient, VMath.divideEquals(learningRate, VMath.root(RMSprop[1], 0.00001) )));
-                VMath.plusEquals(IterationGradient[2], VMath.hadamard(l3WeightGradient, VMath.divideEquals(learningRate, VMath.root(RMSprop[2], 0.00001) )));
-                VMath.plusEquals(IterationGradient[3], VMath.hadamard(l4WeightGradient, VMath.divideEquals(learningRate, VMath.root(RMSprop[3], 0.00001) )));
+                VMath.plusEquals(IterationGradient[0], VMath.hadamard(l1WeightGradient, NetworkMathHelper.divideEquals(learningRate, VMath.root(RMSprop[0], 0.00001) )));
+                VMath.plusEquals(IterationGradient[1], VMath.hadamard(l2WeightGradient, NetworkMathHelper.divideEquals(learningRate, VMath.root(RMSprop[1], 0.00001) )));
+                VMath.plusEquals(IterationGradient[2], VMath.hadamard(l3WeightGradient, NetworkMathHelper.divideEquals(learningRate, VMath.root(RMSprop[2], 0.00001) )));
+                VMath.plusEquals(IterationGradient[3], VMath.hadamard(l4WeightGradient, NetworkMathHelper.divideEquals(learningRate, VMath.root(RMSprop[3], 0.00001) )));
 
                 iter.advance();
             }

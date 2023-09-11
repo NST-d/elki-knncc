@@ -9,7 +9,10 @@ import elki.database.relation.MaterializedDoubleRelation;
 import elki.database.relation.Relation;
 import elki.database.relation.RelationUtil;
 import elki.logging.Logging;
+import elki.logging.statistics.DoubleStatistic;
 import elki.math.DoubleMinMax;
+import elki.math.MeanVariance;
+import elki.math.linearalgebra.VMath;
 import elki.outlier.OutlierAlgorithm;
 import elki.outlier.autoencoder.networks.AutoencoderLayers3;
 import elki.outlier.autoencoder.networks.AutoencoderLayers7;
@@ -29,6 +32,7 @@ import elki.utilities.optionhandling.parameters.RandomParameter;
 import elki.utilities.random.RandomFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,7 +55,7 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
 
     protected Random random;
 
-    public Autoencoder(double alpha, int iterations, double rho, double learningRate, int numberNetworks, double maxSizeFraction, double adaptiveSizeRate, double weightDecay, RandomFactory random){
+    public Autoencoder(double alpha, int iterations, double rho, double learningRate, int numberNetworks, double maxSizeFraction, double adaptiveSizeRate, double weightDecay, RandomFactory random) {
         super();
         this.alpha = alpha;
         this.iterations = iterations;
@@ -64,45 +68,58 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
         this.random = random.getSingleThreadedRandom();
     }
 
-    public OutlierResult run(Relation<V> relation){
+    public OutlierResult run(Relation<V> relation) {
         int dim = RelationUtil.dimensionality(relation);
 
         ArrayList<TrainableNetwork<V, Double>> autoencoders = new ArrayList<>(numberNetworks);
 
-        for(int i = 0; i < numberNetworks; i++) {
+        for (int i = 0; i < numberNetworks; i++) {
             TrainableNetwork<V, Double> network = new AutoencoderLayers7<>(alpha, dim, random);
-
             network.train(relation, rho, learningRate, iterations, adaptiveSizeRate, maxSizeFraction, weightDecay);
-
             autoencoders.add(network);
         }
 
-        DoubleMinMax minMax = new DoubleMinMax();
+        double[][] scores = new double[numberNetworks][relation.size()];
+        for (int i = 0; i < numberNetworks; i++) {
 
+            MeanVariance meanVariance = new MeanVariance();
+
+            int j = 0;
+            for (DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()) {
+                double score = autoencoders.get(i).forward(relation.get(iter));
+                scores[i][j] = score;
+                meanVariance.put(score);
+
+                j++;
+            }
+            //normalize per ensemble component
+            VMath.timesEquals(scores[i], 1.0 / meanVariance.getSampleStddev());
+
+            MeanVariance assertion = new MeanVariance();
+            assertion.put(scores[i]);
+            assert Math.abs(assertion.getSampleStddev() - 1.0) < Double.MIN_VALUE;
+        }
+
+        scores = VMath.transpose(scores);
+
+
+        DoubleMinMax minMax = new DoubleMinMax();
         EnsembleVoting voting = new EnsembleVotingMedian(0.25);
 
         DoubleRelation rel = new MaterializedDoubleRelation("autoencoder-outlier", relation.getDBIDs());
-        for (DBIDIter iter = relation.iterDBIDs(); iter.valid();iter.advance()){
-            double[] scores = new double[numberNetworks];
 
+        int i = 0;
+        for (DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()) {
+            double outlierscore = voting.combine(scores[i]);
 
-            LOG.verbose("New element:");
-            for(int i = 0; i < numberNetworks; i++){
-                double score = autoencoders.get(i).forward(relation.get(iter));
-                scores[i] = score;
-                LOG.verbose("score in " + i + ": " + score);
-            }
-            double outlierscore = voting.combine(scores);
-
-            LOG.verbose("Overall: " + outlierscore);
-
+            LOG.verbose("Ensemble scores: " + Arrays.toString(scores[i]) + ", median: " + outlierscore);
             rel.set(iter, outlierscore);
-
             minMax.put(outlierscore);
+
+            i++;
         }
 
         OutlierScoreMeta meta = new BasicOutlierScoreMeta(minMax.getMin(), minMax.getMax(), 0, Double.POSITIVE_INFINITY);
-
         return new OutlierResult(meta, rel);
     }
 
@@ -121,26 +138,26 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
         public static final OptionID ITERATION_ID = new OptionID("autoencoder.iteration", "Iteration that the autoencoder is trained.");
 
         protected double rho;
-        public static final OptionID RHO_ID = new OptionID("autoencoder.rho","Rho parameter for RMSprop optimizer");
+        public static final OptionID RHO_ID = new OptionID("autoencoder.rho", "Rho parameter for RMSprop optimizer");
 
         protected double learningRate;
-        public static final OptionID LEARNING_RATE_ID = new OptionID("autoencoder.learningRate","Learning rate for RMSprop optimizer");
+        public static final OptionID LEARNING_RATE_ID = new OptionID("autoencoder.learningRate", "Learning rate for RMSprop optimizer");
 
         protected int numberAutoencoders;
         public static final OptionID NUMBER_AUTOENCODERS_ID = new OptionID("autoencoder.numberNetworks", "Number of autoencoders in ensemble");
 
         protected double adaptiveRate;
-        public static final OptionID ADAPTIVE_RATE_ID = new OptionID("autoencoder.adaptiveRate","The rate at which the samples per iteraton increases");
+        public static final OptionID ADAPTIVE_RATE_ID = new OptionID("autoencoder.adaptiveRate", "The rate at which the samples per iteraton increases");
 
         protected double maxFraction;
         public static OptionID MAX_FRACTION_ID = new OptionID("autoencoder.maxFraction", "The fraction of total samples used for each component of the ensemble.");
 
 
         protected double weight_decay;
-        public static OptionID WEIGHT_DECAY_ID = new OptionID("autoencoder.weightDecay","Weight for weight decay.");
+        public static OptionID WEIGHT_DECAY_ID = new OptionID("autoencoder.weightDecay", "Weight for weight decay.");
 
         protected TrainableNetwork<V, Double> network;
-        public static OptionID NETWORK_ID = new OptionID("autoencoder.network","The specific autoencoder to use.");
+        public static OptionID NETWORK_ID = new OptionID("autoencoder.network", "The specific autoencoder to use.");
 
 
         protected RandomFactory random;
@@ -153,14 +170,14 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
                     .grab(config, x -> alpha = x);
 
             new IntParameter(ITERATION_ID).addConstraint(CommonConstraints.GREATER_EQUAL_ONE_INT)
-                    .grab(config, x-> iteration = x);
+                    .grab(config, x -> iteration = x);
 
             new DoubleParameter(RHO_ID).addConstraint(CommonConstraints.LESS_EQUAL_ONE_DOUBLE)
                     .addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
-                    .grab(config, x-> rho = x);
+                    .grab(config, x -> rho = x);
 
             new DoubleParameter(LEARNING_RATE_ID).addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
-                    .grab(config, x-> learningRate = x);
+                    .grab(config, x -> learningRate = x);
 
             new IntParameter(NUMBER_AUTOENCODERS_ID).addConstraint(CommonConstraints.GREATER_EQUAL_ONE_INT)
                     .grab(config, x -> numberAutoencoders = x);

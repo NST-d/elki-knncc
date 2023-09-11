@@ -72,6 +72,15 @@ public class NetworkMathHelper {
         return v1;
     }
 
+    public static double[][] divideEquals(final double s1, final double[][] m1){
+        for(int i = 0; i < m1.length; i++){
+            for(int j = 0; j < m1[i].length; j++){
+                m1[i][j] = s1 / m1[i][j];
+            }
+        }
+        return m1;
+    }
+
     public static double[] hadamardSquare(final double[] v1){
         final double[] v = new double[v1.length];
         for(int i = 0;i < v1.length; i++){
@@ -79,6 +88,20 @@ public class NetworkMathHelper {
         }
         return v;
     }
+    /*
+    Hadamard product of a matrix with itself m 0 m1 * m1
+     */
+    public static double[][] hadamardSquare(final double[][] m1){
+        final int rowdim = m1.length, coldim = getColumnDimensionality(m1);
+        final double[][] m = new double[rowdim][coldim];
+        for(int i = 0; i < rowdim; i++){
+            for (int j = 0; j < coldim; j++){
+                m[i][j] = m1[i][j] * m1[i][j];
+            }
+        }
+        return m;
+    }
+
 
     /*
     Hadamard product of a transposed Matrix with itself: m = m1^T * m1^T

@@ -512,15 +512,6 @@ public final class VMath {
     return m;
   }
 
-  public static double[][] divideEquals(final double s1, final double[][] m1){
-    for(int i = 0; i < m1.length; i++){
-      for(int j = 0; j < m1[i].length; j++){
-        m1[i][j] = s1 / m1[i][j];
-      }
-    }
-    return m1;
-  }
-
   /**
    * Multiply component-wise v1 = v1 * s1,
    * overwriting the vector v1.
