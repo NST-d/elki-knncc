@@ -4,6 +4,7 @@ import elki.data.NumberVector;
 import elki.logging.Logging;
 import elki.math.linearalgebra.VMath;
 import elki.utilities.random.RandomFactory;
+import jdk.internal.misc.VM;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -178,27 +179,33 @@ public class AutoencoderLayers7 <V extends NumberVector> extends AbstractAutoenc
         double[] inputArray = input.toArray();
         //first layer
         double[] hiddenLayer1 = VMath.transposeTimes(networkWeights.weight[0], inputArray);
+        VMath.plusEquals(hiddenLayer1, networkWeights.bias[0]);
         //maybe move in VMath??
         NetworkMathHelper.sigmoid(hiddenLayer1);
 
         //second layer
         double[] hiddenLayer2 = VMath.transposeTimes(networkWeights.weight[1], hiddenLayer1);
+        VMath.plusEquals(hiddenLayer2, networkWeights.bias[1]);
         hiddenLayer2 = NetworkMathHelper.ReLu(hiddenLayer2);
 
         //third layer
         double[] hiddenLayer3 = VMath.transposeTimes(networkWeights.weight[2], hiddenLayer2);
+        VMath.plusEquals(hiddenLayer3, networkWeights.bias[2]);
         hiddenLayer3 = NetworkMathHelper.ReLu(hiddenLayer3);
 
         //fourth layer - decoder starts here
         double[] hiddenLayer4 = VMath.transposeTimes(networkWeights.weight[3], hiddenLayer3);
+        VMath.plusEquals(hiddenLayer4, networkWeights.bias[4]);
         hiddenLayer4 = NetworkMathHelper.ReLu(hiddenLayer4);
 
         //fourth layer
         double[] hiddenLayer5 = VMath.transposeTimes(networkWeights.weight[4], hiddenLayer4);
+        VMath.plusEquals(hiddenLayer5, networkWeights.bias[5]);
         hiddenLayer5 = NetworkMathHelper.ReLu(hiddenLayer5);
 
         //fourth layer - decoder starts here
         double[] output = VMath.transposeTimes(networkWeights.weight[5], hiddenLayer5);
+        VMath.plusEquals(output, networkWeights.bias[5]);
         NetworkMathHelper.sigmoid(output);
 
         //Reproduction error
