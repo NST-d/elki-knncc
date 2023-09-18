@@ -149,6 +149,9 @@ public class AttributeWiseMeanNormalization<V extends NumberVector> extends Abst
    */
   private double normalize(int d, double val) {
     d = (mean.length == 1) ? 0 : d;
+    if(mean[d] == 0){
+      return val;
+    }
     return val / mean[d];
   }
 
