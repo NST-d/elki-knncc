@@ -35,8 +35,8 @@ public class NetworkMathHelper {
         return output;
     }
 
-    /*
-    Calculates sigmoid activation function for a vector inplace.
+    /**
+    Calculates sigmoid activation function for a vector <bold>inplace</bold>.
      */
     public static double[] sigmoid(double[] input){
         for (int i = 0; i < input.length; i++){
@@ -65,22 +65,11 @@ public class NetworkMathHelper {
         return v;
     }
 
-    public static double[] divideEquals(final double s1, final double[] v1){
-        for(int i = 0; i < v1.length; i++){
-            v1[i] = s1 / v1[i];
-        }
-        return v1;
-    }
-
-    public static double[][] divideEquals(final double s1, final double[][] m1){
-        for(int i = 0; i < m1.length; i++){
-            for(int j = 0; j < m1[i].length; j++){
-                m1[i][j] = s1 / m1[i][j];
-            }
-        }
-        return m1;
-    }
-
+    /**
+     * Hadamard product of a vector with itself: v = v1 * v1
+     * @param v1 Value Vector
+     * @return v
+     */
     public static double[] hadamardSquare(final double[] v1){
         final double[] v = new double[v1.length];
         for(int i = 0;i < v1.length; i++){
@@ -88,8 +77,9 @@ public class NetworkMathHelper {
         }
         return v;
     }
-    /*
-    Hadamard product of a matrix with itself m 0 m1 * m1
+    /**
+     * Hadamard product of a matrix with itself: m = m1 * m1
+     * @param m1 Value Matrix
      */
     public static double[][] hadamardSquare(final double[][] m1){
         final int rowdim = m1.length, coldim = getColumnDimensionality(m1);
@@ -103,10 +93,10 @@ public class NetworkMathHelper {
     }
 
 
-    /*
+    /**
     Hadamard product of a transposed Matrix with itself: m = m1^T * m1^T
+     * @param m1 Value Matrix
      */
-
     public static double[][] transposeHadamardSquare(final double[][] m1){
         final int rowdim = m1.length, coldim = getColumnDimensionality(m1);
         final double[][] m = new double[coldim][rowdim];
@@ -116,5 +106,23 @@ public class NetworkMathHelper {
             }
         }
         return m;
+    }
+
+    /**
+     * Clips a matrix with bounds inplace, for all values x : lower leq x leq upper
+     * @param m1 Value matrix
+     * @param upper upper bound
+     * @param lower lower bound
+     * @return
+     */
+    public static double[][] clip(final double[][] m1, double upper, double lower){
+        final int rowdim = m1.length, coldim = getColumnDimensionality(m1);
+        for (int i = 0; i < rowdim; i++){
+            for (int j = 0; j < coldim; j++){
+                m1[i][j] = Math.min(m1[i][j], upper);
+                m1[i][j] = Math.max(m1[i][j], lower);
+            }
+        }
+        return m1;
     }
 }

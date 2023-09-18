@@ -9,12 +9,10 @@ import elki.database.relation.MaterializedDoubleRelation;
 import elki.database.relation.Relation;
 import elki.database.relation.RelationUtil;
 import elki.logging.Logging;
-import elki.logging.statistics.DoubleStatistic;
 import elki.math.DoubleMinMax;
 import elki.math.MeanVariance;
 import elki.math.linearalgebra.VMath;
 import elki.outlier.OutlierAlgorithm;
-import elki.outlier.autoencoder.networks.AutoencoderLayers3;
 import elki.outlier.autoencoder.networks.AutoencoderLayers7;
 import elki.outlier.autoencoder.networks.TrainableNetwork;
 import elki.result.outlier.BasicOutlierScoreMeta;
@@ -32,10 +30,7 @@ import elki.utilities.optionhandling.parameters.RandomParameter;
 import elki.utilities.random.RandomFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
 
@@ -112,7 +107,7 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
         for (DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()) {
             double outlierscore = voting.combine(scores[i]);
 
-            LOG.verbose("Ensemble scores: " + Arrays.toString(scores[i]) + ", median: " + outlierscore);
+            //LOG.verbose("Ensemble scores: " + Arrays.toString(scores[i]) + ", median: " + outlierscore);
             rel.set(iter, outlierscore);
             minMax.put(outlierscore);
 

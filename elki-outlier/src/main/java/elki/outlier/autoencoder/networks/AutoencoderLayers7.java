@@ -3,15 +3,13 @@ package elki.outlier.autoencoder.networks;
 import elki.data.NumberVector;
 import elki.logging.Logging;
 import elki.math.linearalgebra.VMath;
-import elki.utilities.random.RandomFactory;
-import jdk.internal.misc.VM;
 
 import java.util.Arrays;
 import java.util.Random;
 
 public class AutoencoderLayers7 <V extends NumberVector> extends AbstractAutoencoderNetwork<V> {
 
-    private static final Logging LOG = Logging.getLogger(AutoencoderLayers3.class);
+    private static final Logging LOG = Logging.getLogger(AutoencoderLayers7.class);
     protected int LAYER_MIN_DIMENSION = 3;
     protected final int dataDimension;
     protected final int[] hiddenDimension = new int[(NUM_LAYERS -1)/2];
@@ -131,7 +129,7 @@ public class AutoencoderLayers7 <V extends NumberVector> extends AbstractAutoenc
         double[] error = VMath.minus(sigmoidedOutput, inputArray);
         double sse = VMath.squareSum(error);
 
-        NetworkWeights gradient = new NetworkWeights().init(NUM_LAYERS);
+        NetworkWeights gradient = NetworkWeights.init(NUM_LAYERS);
 
         cumulativeTrainingError += sse;
 
@@ -180,7 +178,6 @@ public class AutoencoderLayers7 <V extends NumberVector> extends AbstractAutoenc
         //first layer
         double[] hiddenLayer1 = VMath.transposeTimes(networkWeights.weight[0], inputArray);
         VMath.plusEquals(hiddenLayer1, networkWeights.bias[0]);
-        //maybe move in VMath??
         NetworkMathHelper.sigmoid(hiddenLayer1);
 
         //second layer
@@ -216,13 +213,5 @@ public class AutoencoderLayers7 <V extends NumberVector> extends AbstractAutoenc
 
 
 
-    /**
-     * Samples n ints in [0,max-1] with replacement
-     * @param max
-     * @param n
-     * @return sampled ints, multiple occurrences removed
-     */
-    private int[] sampleInts(int max, int n){
-        return random.ints(0, max).limit(n).distinct().toArray();
-    }
+
 }

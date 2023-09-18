@@ -10,8 +10,6 @@ import elki.logging.statistics.AtomicLongCounter;
 import elki.math.geometry.XYCurve;
 import elki.math.linearalgebra.VMath;
 import elki.result.Metadata;
-import elki.utilities.random.RandomFactory;
-import jdk.internal.misc.VM;
 
 import java.util.Arrays;
 import java.util.Random;
@@ -37,10 +35,12 @@ public abstract class AbstractAutoencoderNetwork<V extends NumberVector> impleme
         NUM_LAYERS = numberLayer;
 
 
-        networkWeights = new NetworkWeights().init(numberLayer);
-        batchGradient = new NetworkWeights().init(numberLayer);
-        RMSprop = new NetworkWeights().init(numberLayer);
+        networkWeights = NetworkWeights.init(numberLayer);
+        batchGradient = NetworkWeights.init(numberLayer);
+        RMSprop = NetworkWeights.init(numberLayer);
     }
+
+
 
     abstract Logging getLog();
 
@@ -88,7 +88,7 @@ public abstract class AbstractAutoencoderNetwork<V extends NumberVector> impleme
             if (iteration == maxIterations - 1) {
                 getLog().verbose("Training error in iteration " + iteration + " with " + (int) adaptiveSize + " samples: " + cumulativeTrainingError / (int) adaptiveSize);
             }
-            trainingError.add(iteration, cumulativeTrainingError/(int)adaptiveSize);
+            trainingError.addAndSimplify(iteration, cumulativeTrainingError/(int)adaptiveSize);
 
 
             for (int i = 0; i < NUM_LAYERS - 1; i++) {
@@ -135,11 +135,21 @@ public abstract class AbstractAutoencoderNetwork<V extends NumberVector> impleme
 
     }
 
-    class NetworkWeights {
+    /**
+     * Samples n ints in [0,max-1] with replacement
+     * @param max exclusive upper bound
+     * @param n number of digits
+     * @return sampled ints, multiple occurrences removed
+     */
+    protected int[] sampleInts(int max, int n){
+        return random.ints(0, max).limit(n).distinct().toArray();
+    }
+
+    static class NetworkWeights {
         double[][][] weight;
         double[][] bias;
 
-        NetworkWeights init(int numberLayers) {
+        static NetworkWeights init(int numberLayers) {
             NetworkWeights w = new NetworkWeights();
             w.weight = new double[numberLayers - 1][][];
             w.bias = new double[numberLayers - 1][];
