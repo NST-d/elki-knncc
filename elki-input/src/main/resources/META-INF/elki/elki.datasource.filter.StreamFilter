@@ -4,6 +4,7 @@ elki.datasource.filter.typeconversions.MultivariateTimeSeriesFilter
 elki.datasource.filter.selection.ByLabelFilter
 elki.datasource.filter.selection.FirstNStreamFilter
 elki.datasource.filter.selection.RandomSamplingStreamFilter
+elki.datasource.filter.selection.SampleClassFilter
 elki.datasource.filter.cleaning.VectorDimensionalityFilter
 elki.datasource.filter.cleaning.DropNaNFilter
 elki.datasource.filter.cleaning.ReplaceNaNWithRandomFilter

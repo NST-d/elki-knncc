@@ -11,6 +11,7 @@ elki.datasource.filter.selection.FirstNStreamFilter
 elki.datasource.filter.selection.RandomSamplingStreamFilter
 elki.datasource.filter.selection.ShuffleObjectsFilter
 elki.datasource.filter.selection.SortByLabelFilter
+elki.datasource.filter.selection.SampleClassFilter
 elki.datasource.filter.cleaning.DropNaNFilter
 elki.datasource.filter.cleaning.ReplaceNaNWithRandomFilter
 elki.datasource.filter.cleaning.NoMissingValuesFilter
