@@ -18,15 +18,33 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * A filter which samples from data given by some class label and accept all other labels.
+ * Useful for outlier detection when the number of outliers in the original data is too high.
+ *
+ * @author Niklas Strahmann
+ * @since 0.8.0
+ */
 public class SampleClassFilter extends AbstractStreamFilter {
 
+    /**
+     * Class logger
+     */
     private static final Logging LOG = Logging.getLogger(SampleClassFilter.class);
 
     private final Matcher labelMatcher;
 
     private int labelColumn = -1;
-    private double acceptProbability;
-    private Random random;
+    private final double acceptProbability;
+    private final Random random;
+
+    /**
+     * Constructor
+     *
+     * @param labelPattern The pattern to sample from
+     * @param prob Probability
+     * @param rnd Random generator
+     */
 
     public SampleClassFilter(Pattern labelPattern, double prob, RandomFactory rnd) {
         super();
@@ -94,14 +112,30 @@ public class SampleClassFilter extends AbstractStreamFilter {
         }
     }
 
+
+    /**
+     * Parameterization class
+     *
+     * @author Niklas Strahmann
+     */
     public static class Par implements Parameterizer {
 
+        /**
+         * Option ID for the sampling probability
+         */
         public static OptionID PROB_ID = new OptionID("labelsampling.p", "Sampling probability for given class.");
+        protected double prob;
+        /**
+         * Option ID for random seed
+         */
         public static OptionID SEED_ID = new OptionID("labelsampling.seed", "Rndom generator seed for sampling");
+        protected RandomFactory rnd;
+        /**
+         * Option ID for the filter pattern for classes (regEx)
+         */
         public static OptionID LABEL_PATTERN_ID = new OptionID("labelsampling.pattern", "The filter pattern to sample.");
         protected Pattern pattern;
-        protected double prob;
-        protected RandomFactory rnd;
+
         @Override
         public void configure(Parameterization config) {
             new PatternParameter(LABEL_PATTERN_ID).grab(config, x -> pattern = x);

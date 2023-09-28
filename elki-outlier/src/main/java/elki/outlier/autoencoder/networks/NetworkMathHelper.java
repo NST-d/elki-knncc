@@ -5,6 +5,14 @@ import elki.math.linearalgebra.VMath;
 import static elki.math.linearalgebra.VMath.*;
 
 public class NetworkMathHelper {
+
+    /**Calculates the downstream gradient of a ReLu function given the upstream gradient and the input values of ReLu.
+     * <code>dL/dx = dL/dy * dy/dx</code>
+     *
+     * @param inputValues Input vector for ReLu
+     * @param upstreamGradient Upstream gradient
+     * @return downstream gradient
+     */
     public static double[] ReLuGradient(double[] inputValues, double[] upstreamGradient){
         double[] localGradient = new double[inputValues.length];
         for(int i = 0; i < localGradient.length; i++){
@@ -15,6 +23,13 @@ public class NetworkMathHelper {
         return localGradient;
     }
 
+    /**
+     * Calcualtes the downstream gradient of the weight <code> W </code> of an (almost) fully connected layer <code>y = W x</code>
+     * @param inputValues Input values <code> x </code>
+     * @param upstreamGradient upstream Gradient <code>dy</code>
+     * @param activeConnections Bitmap which connections of the network are active
+     * @return <code>dW = dy^T x</code>, accounted for inactive connections
+     */
     public static double[][] RandLayerWeightGradient(double[] inputValues, double[] upstreamGradient, boolean[][] activeConnections){
         double[][] weightGradient = VMath.timesTranspose(upstreamGradient, inputValues);
         for(int i = 0; i < activeConnections.length; i++){
@@ -27,6 +42,9 @@ public class NetworkMathHelper {
         return weightGradient;
     }
 
+    /**
+     * Calculates the vector valued ReLu function <code>ReLu(a) = max(0, a)</code>
+     */
     public static double[] ReLu(double[] input){
         double[] output = new double[input.length];
         for(int i = 0; i < input.length; i++){
@@ -36,7 +54,7 @@ public class NetworkMathHelper {
     }
 
     /**
-    Calculates sigmoid activation function for a vector <bold>inplace</bold>.
+    Calculates sigmoid activation function <code>s(a) = 1/(1 + exp(a))</code> for a vector <bold>inplace</bold>.
      */
     public static double[] sigmoid(double[] input){
         for (int i = 0; i < input.length; i++){
@@ -49,6 +67,12 @@ public class NetworkMathHelper {
         return 1.0/ (1.0 + Math.exp(a));
     }
 
+    /**
+     * Calculates the vector valued gradient of the sigmoid function <code>s(a) = 1 / (1 + exp (a))</code> given
+     * <code>s(a)</code> by <code>s(a) * (1 - s(a))</code>
+     * @param sigmoidOutput The output of the sigmoid function
+     * @return The gradient of the sigmoid function.
+     */
     public static double[] sigmoidGradient(final double[] sigmoidOutput){
         final double[] grad = new double[sigmoidOutput.length];
         for (int i = 0; i < sigmoidOutput.length; i++){
@@ -57,6 +81,12 @@ public class NetworkMathHelper {
         return grad;
     }
 
+    /**
+     * Calcualtes the element-wise root of a vector <code>v1</code>. For stability, a <code>eps</code> value is added to each element.
+     * @param v1 Value vector
+     * @param eps Eps value
+     * @return <code>root(v1 + eps)</code>
+     */
     public static double[] root(final double[] v1, final double eps){
         final double[] v = new double[v1.length];
         for (int i = 0; i < v1.length; i++){
