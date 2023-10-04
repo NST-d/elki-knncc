@@ -3,7 +3,7 @@ package elki.outlier.autoencoder.networks;
 import elki.database.relation.Relation;
 
 /**
- * Interface for any trainable neural network
+ * Interface for trainable neural networks
  * @param <I> Input data type
  * @param <O> Output data type
  *
