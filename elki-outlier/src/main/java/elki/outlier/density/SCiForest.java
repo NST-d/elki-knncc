@@ -11,6 +11,9 @@ import elki.database.relation.DoubleRelation;
 import elki.database.relation.MaterializedDoubleRelation;
 import elki.database.relation.Relation;
 import elki.database.relation.RelationUtil;
+import elki.logging.Logging;
+import elki.logging.progress.FiniteProgress;
+import elki.logging.progress.StepProgress;
 import elki.math.DoubleMinMax;
 import elki.math.MathUtil;
 import elki.math.MeanVariance;
@@ -33,7 +36,13 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-public class SCiForest implements OutlierAlgorithm{
+public class SCiForest implements OutlierAlgorithm {
+
+    /**
+     * Class logger
+     */
+    private static final Logging LOG = Logging.getLogger(SCiForest.class);
+
 
     private final int amountTrees;
     private int subsampleSize;
@@ -41,9 +50,7 @@ public class SCiForest implements OutlierAlgorithm{
     private final int hyperplanesPerNode;
     private final RandomFactory random;
 
-    private int DIMENSIONALITY;
-
-    public SCiForest(int amountTrees, int subsampleSize, int amountAttributes, int amountSampledHyperplanesPerNode, RandomFactory random){
+    public SCiForest(int amountTrees, int subsampleSize, int amountAttributes, int amountSampledHyperplanesPerNode, RandomFactory random) {
         this.amountTrees = amountTrees;
         this.subsampleSize = subsampleSize;
         this.amountAttributes = amountAttributes;
@@ -51,39 +58,44 @@ public class SCiForest implements OutlierAlgorithm{
         this.random = random;
     }
 
-    public OutlierResult run(Relation<? extends NumberVector> relation){
-        DIMENSIONALITY = RelationUtil.dimensionality(relation);
+    public OutlierResult run(Relation<? extends NumberVector> relation) {
 
-        if(relation.size() < subsampleSize){
+        if (relation.size() < subsampleSize) {
             subsampleSize = relation.size();
         }
-        Random rnd = random.getSingleThreadedRandom();
+        StepProgress stepProgress = LOG.isVerbose() ? new StepProgress(2) : null;
+        LOG.beginStep(stepProgress, 1, "Generating SCiForest trees");
+        FiniteProgress progess = LOG.isVerbose() ? new FiniteProgress("SCi forest construction", amountTrees, LOG) : null;
 
-
+        final Random rnd = random.getSingleThreadedRandom();
         List<SciForestNode> trees = new ArrayList<>(amountTrees);
         SciForestBuilder builder = new SciForestBuilder(relation, rnd, amountAttributes, subsampleSize, hyperplanesPerNode);
-        for(int t = 0; t < amountTrees; t++){
+        for (int t = 0; t < amountTrees; t++) {
             trees.add(builder.newTree());
+            LOG.incrementProcessed(progess);
         }
+        LOG.ensureCompleted(progess);
 
+        LOG.beginStep(stepProgress, 2, "Computing forest scores");
+        progess = LOG.isVerbose() ? new FiniteProgress("Forest scores", relation.size(), LOG) : null;
         WritableDoubleDataStore scores = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_DB);
         DoubleMinMax minmax = new DoubleMinMax();
         final double f = -MathUtil.LOG2 / (trees.size() * TreeUtil.c(subsampleSize));
         // Iterate over all objects
-        for(DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()) {
+        for (DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()) {
             final NumberVector v = relation.get(iter);
             // Score against each tree:
             double avgPathLength = 0;
-            for(SciForestNode tree : trees) {
+            for (SciForestNode tree : trees) {
                 avgPathLength += isolationScore(tree, v, 0);
             }
             final double score = FastMath.exp(f * avgPathLength);
             scores.putDouble(iter, score);
             minmax.put(score);
-            //LOG.incrementProcessed(prog);
+            LOG.incrementProcessed(progess);
         }
-        //LOG.ensureCompleted(prog);
-        //LOG.ensureCompleted(stepprog);
+        LOG.ensureCompleted(progess);
+        LOG.ensureCompleted(stepProgress);
 
         // Wrap the result in the standard containers
         OutlierScoreMeta meta = new BasicOutlierScoreMeta(
@@ -96,15 +108,15 @@ public class SCiForest implements OutlierAlgorithm{
 
     }
 
-    protected double isolationScore(SciForestNode n, NumberVector v, int level ){
-        if (n.externalNode){
+    protected double isolationScore(SciForestNode n, NumberVector v, int level) {
+        if (n.externalNode) {
             return level + n.size;
         }
         double y = n.hyperplane.f(v.toArray());
-        if (y <= 0){
-            return isolationScore(n.right, v, level+ y<n.upperLimit?1:0);
-        }else {
-            return isolationScore(n.left, v, y > n.lowerLimit?1:0);
+        if (y <= 0) {
+            return isolationScore(n.right, v, level + y < n.upperLimit ? 1 : 0);
+        } else {
+            return isolationScore(n.left, v, y > n.lowerLimit ? 1 : 0);
         }
     }
 
@@ -131,7 +143,7 @@ public class SCiForest implements OutlierAlgorithm{
         int hyperplanesPerNode;
 
 
-        protected SciForestBuilder(Relation<? extends NumberVector> relation, Random random, int amountAttributes, int subsampleSize, int hyperplanesPerNode){
+        protected SciForestBuilder(Relation<? extends NumberVector> relation, Random random, int amountAttributes, int subsampleSize, int hyperplanesPerNode) {
             this.relation = relation;
             this.random = random;
             this.amountAttributes = amountAttributes;
@@ -142,38 +154,57 @@ public class SCiForest implements OutlierAlgorithm{
             this.iter = dbids.iter();
         }
 
-        protected SciForestNode newTree(){
+        protected SciForestNode newTree() {
             int[] allIndices = IntStream.range(0, subsampleSize).toArray();
             return buildTree(allIndices);
         }
 
         /**
          * Builds a single Tree recursively
+         *
          * @return Tree node
          */
-        protected SciForestNode buildTree(int[] indices){
+        protected SciForestNode buildTree(int[] indices) {
 
-            if( indices.length <= 2){
+            if (indices.length <= 2) {
                 return new SciForestNode(null,
                         0,
                         0,
                         indices.length,
                         null,
                         null);
-            }else{
-                Hyperplane plane = findBestHyperplane(indices);
+            } else {
+                double[] stdDev = perDimensionStddev(indices);
+
+                //can't construct a separating hyperplane if stdDev in all dimensions is zero
+                if (TreeUtil.allZeros(stdDev, 0.00001)) {
+                    return new SciForestNode(null,
+                            0,
+                            0,
+                            indices.length,
+                            null,
+                            null);
+                }
+
+                Hyperplane plane = findBestHyperplane(indices, stdDev);
+
+                if (plane == null) {
+                    LOG.debug("Error");
+                }
+
+                assert plane != null;
 
                 ArrayList<Integer> lowerIndices = new ArrayList<>();
                 ArrayList<Integer> higherIndices = new ArrayList<>();
 
                 DoubleMinMax minMax = new DoubleMinMax();
 
-                for (int i : indices){
-                    double value = plane.f( relation.get(iter.seek(i)).toArray() );
+                for (int i : indices) {
+                    double value = plane.f(relation.get(iter.seek(i)).toArray());
                     minMax.put(value);
-                    if(value >= 0){
+                    if (value >= 0) {
                         higherIndices.add(i);
-                    }else {
+                    } else {
                         lowerIndices.add(i);
                     }
                 }
@@ -187,33 +218,38 @@ public class SCiForest implements OutlierAlgorithm{
                 double maxValueDifference = minMax.getDiff();
 
                 return new SciForestNode(plane,
-                        + maxValueDifference,
-                        - maxValueDifference,
+                        +maxValueDifference,
+                        -maxValueDifference,
                         indices.length,
                         buildTree(lowIndices),
-                        buildTree(highIndices) );
+                        buildTree(highIndices));
             }
 
         }
 
 
-
-        protected Hyperplane findBestHyperplane(int[] indices){
+        protected Hyperplane findBestHyperplane(int[] indices, double[] stdDev) {
 
             double bestSdGain = Double.NEGATIVE_INFINITY;
             Hyperplane bestHyperplane = null;
 
-            double[] stddev = perDimensionStddev(indices);
 
-            for (int i = 0; i < hyperplanesPerNode; i++){
+            for (int i = 0; i < hyperplanesPerNode; i++) {
 
-                Hyperplane plane = sampleHyperplane(stddev);
+                Hyperplane plane = sampleHyperplane(stdDev);
 
                 double sdGain = setBestSeparatingPoint(plane, indices);
-                if(sdGain > bestSdGain){
+                if (sdGain > bestSdGain) {
                     bestSdGain = sdGain;
                     bestHyperplane = plane;
                 }
+            }
+
+            //TODO find out why this can happen
+            if (bestHyperplane == null) {
+                LOG.debug("Error");
+                Hyperplane plane = sampleHyperplane(stdDev);
+                double sdGain = setBestSeparatingPoint(plane, indices);
             }
 
             return bestHyperplane;
@@ -221,16 +257,17 @@ public class SCiForest implements OutlierAlgorithm{
 
         /**
          * Finds the best separating point for a hyperplane according to sd gain, sets in hyperplane and returns the sdgain value.
-         * @param hyperplane
-         * @param indices
-         * @return
+         *
+         * @param hyperplane Hyperplane for that the best separation point is set
+         * @param indices    Indices of DBIDs of elements in the relation which are checked as seperation points
+         * @return SD Gain of separating point that is selected
          */
-        protected double setBestSeparatingPoint(Hyperplane hyperplane, int[] indices){
+        protected double setBestSeparatingPoint(Hyperplane hyperplane, int[] indices) {
             double[] hyperplaneProjection = new double[indices.length];
             MeanVariance allValueVariance = new MeanVariance();
 
-            for (int i = 0; i < indices.length; i++){
-                double y = hyperplane.f(relation.get(iter.seek(indices[i])).toArray() );
+            for (int i = 0; i < indices.length; i++) {
+                double y = hyperplane.f(relation.get(iter.seek(indices[i])).toArray());
                 allValueVariance.put(y);
                 hyperplaneProjection[i] = y;
             }
@@ -239,7 +276,7 @@ public class SCiForest implements OutlierAlgorithm{
             double allStdDev = allValueVariance.getSampleStddev();
 
 
-            if (indices.length == 3 || indices.length == 4){
+            if (indices.length == 3 || indices.length == 4) {
                 int bestSeperatingPointIndex = -1;
                 double bestSeperatigValue = Double.NEGATIVE_INFINITY;
                 for (int i = 0; i < indices.length; i++) {
@@ -271,7 +308,12 @@ public class SCiForest implements OutlierAlgorithm{
                         bestSeperatingPointIndex = i;
                     }
                 }
+                if (bestSeperatingPointIndex == -1) {
+                    LOG.debug("Error");
+                }
+
                 hyperplane.splitPoint = hyperplaneProjection[bestSeperatingPointIndex];
+
 
                 return bestSeperatigValue;
 
@@ -282,30 +324,37 @@ public class SCiForest implements OutlierAlgorithm{
             int bestSeperatingPointIndex = -1;
             double bestSeperatigValue = Double.NEGATIVE_INFINITY;
 
-            for(int i = 0; i < hyperplaneProjection.length; i++){
+            for (int i = 0; i < hyperplaneProjection.length; i++) {
                 MeanVariance lowerVariance = new MeanVariance();
                 MeanVariance higherVariance = new MeanVariance();
                 double p = hyperplaneProjection[i];
 
-                for (int j = 0; j < indices.length; j++){
-                    if(hyperplaneProjection[j] < p){
+                for (int j = 0; j < indices.length; j++) {
+                    if (hyperplaneProjection[j] < p) {
                         lowerVariance.put(hyperplaneProjection[j]);
-                    }else {
+                    } else {
                         higherVariance.put(hyperplaneProjection[j]);
                     }
                 }
 
-                if (lowerVariance.getCount() <= 1 || higherVariance.getCount() <= 1){
+                if (lowerVariance.getCount() <= 1 || higherVariance.getCount() <= 1) {
+                    if (lowerVariance.getCount() > 0 && higherVariance.getCount() > 0 && bestSeperatigValue == Double.NEGATIVE_INFINITY) {
+                        bestSeperatingPointIndex = i;
+                    }
                     continue;
                 }
 
                 double sdGain = sdGain(allStdDev, lowerVariance.getSampleStddev(), higherVariance.getSampleStddev());
 
-                if(sdGain > bestSeperatigValue){
+                if (sdGain > bestSeperatigValue) {
                     bestSeperatigValue = sdGain;
                     bestSeperatingPointIndex = i;
                 }
 
+            }
+
+            if (bestSeperatingPointIndex == -1) {
+                LOG.debug("Error");
             }
 
             hyperplane.splitPoint = hyperplaneProjection[bestSeperatingPointIndex];
@@ -313,37 +362,43 @@ public class SCiForest implements OutlierAlgorithm{
             return bestSeperatigValue;
         }
 
-        protected double sdGain(double stdDevAll,double stdDevLow, double stdDevHigh){
-            return (stdDevAll - (stdDevLow + stdDevHigh)/ 2) / stdDevAll;
+        protected double sdGain(double stdDevAll, double stdDevLow, double stdDevHigh) {
+            return (stdDevAll - (stdDevLow + stdDevHigh) / 2) / stdDevAll;
         }
 
-        protected Hyperplane sampleHyperplane(double[] stddev){
+        protected Hyperplane sampleHyperplane(double[] stddev) {
 
-            int[] dimensions = random.ints(amountAttributes, 0, dimensionality).toArray();
+            //gets amountAttributes if there are enough separating dimensions, or all separating dimensions otherwise
+            int[] dimensions = random.ints(0, dimensionality)
+                    .distinct()
+                    .filter(i -> Math.abs(stddev[i]) > 0.00001)
+                    .limit(amountAttributes)
+                    .toArray();
 
             double[] coefficients = new double[amountAttributes];
             double[] stdDevInChosenDimension = new double[amountAttributes];
 
-            for (int i = 0; i < amountAttributes; i++){
-                coefficients[i] = random.nextDouble(-1,1);
+            for (int i = 0; i < amountAttributes; i++) {
+                //random value uniform distributed in [-1, 1]
+                coefficients[i] = 2 * (random.nextDouble() - 0.5);
                 stdDevInChosenDimension[i] = stddev[dimensions[i]];
             }
 
             return new Hyperplane(dimensions, coefficients, stdDevInChosenDimension, 0);
         }
 
-        public double[] perDimensionStddev(int[] indices){
-            MeanVariance[] meanVariances  = MeanVariance.newArray(dimensionality);
+        public double[] perDimensionStddev(int[] indices) {
+            MeanVariance[] meanVariances = MeanVariance.newArray(dimensionality);
 
-            for (int i : indices){
+            for (int i : indices) {
                 double[] v = relation.get(iter.seek(i)).toArray();
-                for (int d = 0; d < dimensionality;d++){
+                for (int d = 0; d < dimensionality; d++) {
                     meanVariances[d].put(v[d]);
                 }
             }
 
             double[] stdDev = new double[dimensionality];
-            for (int d = 0; d < dimensionality;d++){
+            for (int d = 0; d < dimensionality; d++) {
                 stdDev[d] = meanVariances[d].getSampleStddev();
             }
             return stdDev;
@@ -351,7 +406,7 @@ public class SCiForest implements OutlierAlgorithm{
 
     }
 
-    protected static class SciForestNode{
+    protected static class SciForestNode {
 
         /**
          * Separating hyperplane.
@@ -378,7 +433,7 @@ public class SCiForest implements OutlierAlgorithm{
 
         boolean externalNode;
 
-        public SciForestNode(Hyperplane hyperplane, double upperLimit, double lowerLimit, int size, SciForestNode left, SciForestNode right ){
+        public SciForestNode(Hyperplane hyperplane, double upperLimit, double lowerLimit, int size, SciForestNode left, SciForestNode right) {
 
             this.hyperplane = hyperplane;
             this.upperLimit = upperLimit;
@@ -390,10 +445,9 @@ public class SCiForest implements OutlierAlgorithm{
         }
 
 
-
     }
 
-    protected static class Hyperplane{
+    protected static class Hyperplane {
         /**
          * Indices of dimensions used in Hyperplane.
          */
@@ -415,7 +469,7 @@ public class SCiForest implements OutlierAlgorithm{
         double splitPoint;
 
 
-        protected Hyperplane(int[] dimensions, double[] coefficents, double[] stddev, double splitPoint ){
+        protected Hyperplane(int[] dimensions, double[] coefficents, double[] stddev, double splitPoint) {
             assert coefficents.length == stddev.length;
             this.dimensions = dimensions;
             this.coefficients = coefficents;
@@ -423,9 +477,9 @@ public class SCiForest implements OutlierAlgorithm{
             this.splitPoint = splitPoint;
         }
 
-        protected double f(double[] x){
+        protected double f(double[] x) {
             double sum = 0;
-            for (int i = 0; i < coefficients.length; i++){
+            for (int i = 0; i < coefficients.length; i++) {
                 sum += coefficients[i] * x[dimensions[i]] / stddev[i];
             }
             sum -= splitPoint;
@@ -449,13 +503,12 @@ public class SCiForest implements OutlierAlgorithm{
 
         public static final OptionID AMOUNT_ATTRIBUTES_ID = new OptionID("sciforest.attributes", "Number of attributes used for hyperplanes.");
 
-        public static final OptionID AMOUNT_HYPERPLANES_ID = new OptionID("sciforest.hyperplanes","Number of sampled hyperplanes per tree node");
+        public static final OptionID AMOUNT_HYPERPLANES_ID = new OptionID("sciforest.hyperplanes", "Number of sampled hyperplanes per tree node");
 
         /**
          * Parameter to specify the seed to initialize Random.
          */
         public static final OptionID SEED_ID = new OptionID("sciforest.seed", "The seed to use for initializing Random.");
-
 
 
         /**

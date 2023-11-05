@@ -20,25 +20,40 @@ public class TreeUtil {
         return n <= 1.0 ? 0 : 2 * (FastMath.log(n - 1) + MathUtil.EULERMASCHERONI) - (2. * (n - 1) / n);
     }
 
-    public static double[] perDimensionStddev(Relation<? extends NumberVector> relation){
+    public static double[] perDimensionStddev(Relation<? extends NumberVector> relation) {
         int dimensionality = RelationUtil.dimensionality(relation);
 
-        MeanVariance[] meanVariances  = MeanVariance.newArray(dimensionality);
+        MeanVariance[] meanVariances = MeanVariance.newArray(dimensionality);
 
-        for (DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()){
+        for (DBIDIter iter = relation.iterDBIDs(); iter.valid(); iter.advance()) {
             double[] v = relation.get(iter).toArray();
-            for (int d = 0; d < dimensionality;d++){
+            for (int d = 0; d < dimensionality; d++) {
                 meanVariances[d].put(v[d]);
             }
         }
 
         double[] stdDev = new double[dimensionality];
-        for (int d = 0; d < dimensionality;d++){
+        for (int d = 0; d < dimensionality; d++) {
             stdDev[d] = meanVariances[d].getSampleStddev();
         }
         return stdDev;
     }
 
+    /**
+     * Check if all entries of an array are zero or close to zero.
+     *
+     * @param array array to check
+     * @param eps closeness allowed to zero
+     * @return true if all entries are zero, false otherwise.
+     */
+    public static boolean allZeros(double[] array, double eps) {
+        for (double o : array) {
+            if (Math.abs(o) > eps) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 
 }
