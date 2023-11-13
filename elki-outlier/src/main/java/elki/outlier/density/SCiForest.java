@@ -188,14 +188,11 @@ public class SCiForest implements OutlierAlgorithm {
                             null,
                             null);
                 }
-
                 Hyperplane plane = findBestHyperplane(indices, stdDev);
 
                 ArrayList<Integer> lowerIndices = new ArrayList<>();
                 ArrayList<Integer> higherIndices = new ArrayList<>();
-
                 DoubleMinMax minMax = new DoubleMinMax();
-
                 for (int i : indices) {
                     double value = plane.f(relation.get(iter.seek(i)).toArray());
                     minMax.put(value);
@@ -218,20 +215,14 @@ public class SCiForest implements OutlierAlgorithm {
                         buildTree(lowIndices),
                         buildTree(highIndices));
             }
-
         }
 
-
         protected Hyperplane findBestHyperplane(int[] indices, double[] stdDev) {
-
             double bestSdGain = Double.NEGATIVE_INFINITY;
             Hyperplane bestHyperplane = null;
 
-
             for (int i = 0; i < hyperplanesPerNode; i++) {
-
                 Hyperplane plane = sampleHyperplane(stdDev);
-
                 double sdGain = setBestSeparatingPoint(plane, indices);
                 if (sdGain > bestSdGain) {
                     bestSdGain = sdGain;
@@ -240,7 +231,6 @@ public class SCiForest implements OutlierAlgorithm {
                     bestHyperplane = plane;
                 }
             }
-
             return bestHyperplane;
         }
 
@@ -249,7 +239,7 @@ public class SCiForest implements OutlierAlgorithm {
          * If sdGain can't be calculated for any separating point, a random point is chosen which separates the elements.
          *
          * @param hyperplane Hyperplane for that the best separation point is set
-         * @param indices    Indices of DBIDs of elements in the relation which are checked as seperation points
+         * @param indices    Indices of DBIDs of elements in the relation which are checked as separation points
          * @return SD Gain of separating point that is selected
          */
         protected double setBestSeparatingPoint(Hyperplane hyperplane, int[] indices) {
@@ -266,25 +256,25 @@ public class SCiForest implements OutlierAlgorithm {
             int bestSeperatingPointIndex = -1;
             double bestSeperatigValue = Double.NEGATIVE_INFINITY;
             for (int i = 0; i < hyperplaneProjection.length; i++) {
-                MeanVariance lowerVariance = new MeanVariance();
-                MeanVariance higherVariance = new MeanVariance();
+                MeanVariance lowerValuesVariance = new MeanVariance();
+                MeanVariance higherValuesVariance = new MeanVariance();
                 double separatingPoint = hyperplaneProjection[i];
                 for (int j = 0; j < indices.length; j++) {
                     if (hyperplaneProjection[j] < separatingPoint) {
-                        lowerVariance.put(hyperplaneProjection[j]);
+                        lowerValuesVariance.put(hyperplaneProjection[j]);
                     } else {
-                        higherVariance.put(hyperplaneProjection[j]);
+                        higherValuesVariance.put(hyperplaneProjection[j]);
                     }
                 }
                 //can't calculate stdDev for 0 or 1 sample
-                if (lowerVariance.getCount() <= 1 || higherVariance.getCount() <= 1) {
+                if (lowerValuesVariance.getCount() <= 1 || higherValuesVariance.getCount() <= 1) {
                     //but still use if hyperplane is separating and no hyperplane is found by now
-                    if (lowerVariance.getCount() > 0 && higherVariance.getCount() > 0 && bestSeperatigValue == Double.NEGATIVE_INFINITY) {
+                    if (lowerValuesVariance.getCount() > 0 && higherValuesVariance.getCount() > 0 && bestSeperatigValue == Double.NEGATIVE_INFINITY) {
                         bestSeperatingPointIndex = i;
                     }
                     continue;
                 }
-                double sdGain = sdGain(allStdDev, lowerVariance.getSampleStddev(), higherVariance.getSampleStddev());
+                double sdGain = sdGain(allStdDev, lowerValuesVariance.getSampleStddev(), higherValuesVariance.getSampleStddev());
                 if (sdGain > bestSeperatigValue) {
                     bestSeperatigValue = sdGain;
                     bestSeperatingPointIndex = i;
@@ -295,31 +285,30 @@ public class SCiForest implements OutlierAlgorithm {
         }
 
         protected double sdGain(double stdDevAll, double stdDevLow, double stdDevHigh) {
-            return (stdDevAll - (stdDevLow + stdDevHigh) / 2) / stdDevAll;
+            return (stdDevAll - (stdDevLow + stdDevHigh) / 2.0) / stdDevAll;
         }
 
         protected Hyperplane sampleHyperplane(double[] stdDev) {
 
-            //gets amountAttributes if there are enough separating dimensions, or all separating dimensions otherwise
+            //gets all dimensions in which stdDev is not close to zero
             List<Integer> separatingDimensions = IntStream.range(0, dimensionality)
                     .filter(i -> Math.abs(stdDev[i]) > 0.00001)
                     .boxed()
                     .collect(Collectors.toCollection(ArrayList::new));
 
-            Collections.shuffle(separatingDimensions);
+            //reorders allowed dimensions
+            Collections.shuffle(separatingDimensions, random);
 
-            //select amountAttribute dimensions, or all if all < amountAttributes
+            //select first amountAttribute dimensions, or all if all < amountAttributes
             int[] dimensions = Arrays.copyOfRange(separatingDimensions.stream().mapToInt(i->i).toArray(), 0, Math.min(amountAttributes, separatingDimensions.size()));
 
             double[] coefficients = new double[dimensions.length];
             double[] stdDevInChosenDimension = new double[dimensions.length];
-
             for (int i = 0; i < dimensions.length; i++) {
                 //random value uniform distributed in [-1, 1]
                 coefficients[i] = 2 * (random.nextDouble() - 0.5);
                 stdDevInChosenDimension[i] = stdDev[dimensions[i]];
             }
-
             return new Hyperplane(dimensions, coefficients, stdDevInChosenDimension, 0);
         }
 
