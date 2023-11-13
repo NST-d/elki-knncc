@@ -75,10 +75,7 @@ public class SCiForest implements OutlierAlgorithm {
             LOG.incrementProcessed(progess);
         }
         LOG.ensureCompleted(progess);
-
-        //todo: why isn't this working?
         LOG.beginStep(stepProgress, 2, "Computing forest scores");
-
         progess = LOG.isVerbose() ? new FiniteProgress("Forest scores", relation.size(), LOG) : null;
         WritableDoubleDataStore scores = DataStoreUtil.makeDoubleStorage(relation.getDBIDs(), DataStoreFactory.HINT_DB);
         DoubleMinMax minmax = new DoubleMinMax();
@@ -92,11 +89,15 @@ public class SCiForest implements OutlierAlgorithm {
                 avgPathLength += isolationScore(tree, v, 0);
             }
             final double score = FastMath.exp(f * avgPathLength);
+            if(Double.isNaN(score)){
+                LOG.error("Isolation score is NaN.");
+            }
             scores.putDouble(iter, score);
             minmax.put(score);
             LOG.incrementProcessed(progess);
         }
         LOG.ensureCompleted(progess);
+        //this is buggy...
         LOG.ensureCompleted(stepProgress);
 
         // Wrap the result in the standard containers
