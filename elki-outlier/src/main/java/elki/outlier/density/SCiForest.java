@@ -297,25 +297,26 @@ public class SCiForest implements OutlierAlgorithm {
             return (stdDevAll - (stdDevLow + stdDevHigh) / 2) / stdDevAll;
         }
 
-        protected Hyperplane sampleHyperplane(double[] stddev) {
+        protected Hyperplane sampleHyperplane(double[] stdDev) {
 
             //gets amountAttributes if there are enough separating dimensions, or all separating dimensions otherwise
             List<Integer> separatingDimensions = IntStream.range(0, dimensionality)
-                    .filter(i -> Math.abs(stddev[i]) > 0.00001)
+                    .filter(i -> Math.abs(stdDev[i]) > 0.00001)
                     .boxed()
                     .collect(Collectors.toCollection(ArrayList::new));
 
             Collections.shuffle(separatingDimensions);
 
-            int[] dimensions = Arrays.copyOfRange(separatingDimensions.stream().mapToInt(i->i).toArray(), 0, amountAttributes);
+            //select amountAttribute dimensions, or all if all < amountAttributes
+            int[] dimensions = Arrays.copyOfRange(separatingDimensions.stream().mapToInt(i->i).toArray(), 0, Math.min(amountAttributes, separatingDimensions.size()));
 
-            double[] coefficients = new double[amountAttributes];
-            double[] stdDevInChosenDimension = new double[amountAttributes];
+            double[] coefficients = new double[dimensions.length];
+            double[] stdDevInChosenDimension = new double[dimensions.length];
 
-            for (int i = 0; i < amountAttributes; i++) {
+            for (int i = 0; i < dimensions.length; i++) {
                 //random value uniform distributed in [-1, 1]
                 coefficients[i] = 2 * (random.nextDouble() - 0.5);
-                stdDevInChosenDimension[i] = stddev[dimensions[i]];
+                stdDevInChosenDimension[i] = stdDev[dimensions[i]];
             }
 
             return new Hyperplane(dimensions, coefficients, stdDevInChosenDimension, 0);
