@@ -89,9 +89,6 @@ public class SCiForest implements OutlierAlgorithm {
                 avgPathLength += isolationScore(tree, v, 0);
             }
             final double score = FastMath.exp(f * avgPathLength);
-            if(Double.isNaN(score)){
-                LOG.error("Isolation score is NaN.");
-            }
             scores.putDouble(iter, score);
             minmax.put(score);
             LOG.incrementProcessed(progess);
@@ -157,6 +154,11 @@ public class SCiForest implements OutlierAlgorithm {
             this.iter = dbids.iter();
         }
 
+        /**
+         * Build a new tree
+         *
+         * @return root node of the tree
+         */
         protected SciForestNode newTree() {
             int[] allIndices = IntStream.range(0, subsampleSize).toArray();
             return buildTree(allIndices);
@@ -165,6 +167,7 @@ public class SCiForest implements OutlierAlgorithm {
         /**
          * Builds a single Tree recursively
          *
+         * @param indices the indices of dbids of the elements that gets split in the current node
          * @return Tree node
          */
         protected SciForestNode buildTree(int[] indices) {
@@ -217,6 +220,12 @@ public class SCiForest implements OutlierAlgorithm {
             }
         }
 
+        /**
+         * Samples <code>hyperplanesPerNode</code> hyperplanes and chooses the one with the highest SdGain.
+         * @param indices the indices of dbids of the elements that gets split in the current node
+         * @param stdDev per dimensions std dev
+         * @return sdGain of the best hyperplane
+         */
         protected Hyperplane findBestHyperplane(int[] indices, double[] stdDev) {
             double bestSdGain = Double.NEGATIVE_INFINITY;
             Hyperplane bestHyperplane = null;
@@ -312,6 +321,11 @@ public class SCiForest implements OutlierAlgorithm {
             return new Hyperplane(dimensions, coefficients, stdDevInChosenDimension, 0);
         }
 
+        /**
+         * Calculates the per dimension stdDev for a subsample of the dataset.
+         * @param indices the indices of dbids of the elements of which the std dev will be calculated
+         * @return per dimension std dev
+         */
         public double[] perDimensionStddev(int[] indices) {
             MeanVariance[] meanVariances = MeanVariance.newArray(dimensionality);
 
