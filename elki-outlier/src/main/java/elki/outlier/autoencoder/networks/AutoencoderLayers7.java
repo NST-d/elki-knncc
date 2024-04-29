@@ -192,12 +192,12 @@ public class AutoencoderLayers7 <V extends NumberVector> extends AbstractAutoenc
 
         //fourth layer - decoder starts here
         double[] hiddenLayer4 = VMath.transposeTimes(networkWeights.weight[3], hiddenLayer3);
-        VMath.plusEquals(hiddenLayer4, networkWeights.bias[4]);
+        VMath.plusEquals(hiddenLayer4, networkWeights.bias[3]);
         hiddenLayer4 = NetworkMathHelper.ReLu(hiddenLayer4);
 
         //fourth layer
         double[] hiddenLayer5 = VMath.transposeTimes(networkWeights.weight[4], hiddenLayer4);
-        VMath.plusEquals(hiddenLayer5, networkWeights.bias[5]);
+        VMath.plusEquals(hiddenLayer5, networkWeights.bias[4]);
         hiddenLayer5 = NetworkMathHelper.ReLu(hiddenLayer5);
 
         //fourth layer - decoder starts here
