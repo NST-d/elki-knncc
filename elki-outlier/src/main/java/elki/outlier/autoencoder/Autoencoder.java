@@ -182,30 +182,38 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
 
         @Override
         public void configure(Parameterization config) {
-            new DoubleParameter(ALPHA_ID).addConstraint(CommonConstraints.GREATER_EQUAL_ZERO_DOUBLE)
+            new DoubleParameter(ALPHA_ID, 0.5)
+                    .addConstraint(CommonConstraints.GREATER_EQUAL_ZERO_DOUBLE)
                     .grab(config, x -> alpha = x);
 
-            new IntParameter(ITERATION_ID).addConstraint(CommonConstraints.GREATER_EQUAL_ONE_INT)
+            new IntParameter(ITERATION_ID, 300)
+                    .addConstraint(CommonConstraints.GREATER_EQUAL_ONE_INT)
                     .grab(config, x -> iteration = x);
 
-            new DoubleParameter(RHO_ID).addConstraint(CommonConstraints.LESS_EQUAL_ONE_DOUBLE)
+            new DoubleParameter(RHO_ID, 0.9)
+                    .addConstraint(CommonConstraints.LESS_EQUAL_ONE_DOUBLE)
                     .addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
                     .grab(config, x -> rho = x);
 
-            new DoubleParameter(LEARNING_RATE_ID).addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
+            new DoubleParameter(LEARNING_RATE_ID)
+                    .addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
                     .grab(config, x -> learningRate = x);
 
-            new IntParameter(NUMBER_AUTOENCODERS_ID).addConstraint(CommonConstraints.GREATER_EQUAL_ONE_INT)
+            new IntParameter(NUMBER_AUTOENCODERS_ID, 100)
+                    .addConstraint(CommonConstraints.GREATER_EQUAL_ONE_INT)
                     .grab(config, x -> numberAutoencoders = x);
 
-            new DoubleParameter(ADAPTIVE_RATE_ID).addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
+            new DoubleParameter(ADAPTIVE_RATE_ID, 1.01)
+                    .addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
                     .grab(config, x -> adaptiveRate = x);
 
-            new DoubleParameter(MAX_FRACTION_ID).addConstraint(CommonConstraints.LESS_EQUAL_ONE_DOUBLE)
+            new DoubleParameter(MAX_FRACTION_ID, 0.1)
+                    .addConstraint(CommonConstraints.LESS_EQUAL_ONE_DOUBLE)
                     .addConstraint(CommonConstraints.GREATER_THAN_ZERO_DOUBLE)
                     .grab(config, x -> maxFraction = x);
 
-            new DoubleParameter(WEIGHT_DECAY_ID).addConstraint(CommonConstraints.GREATER_EQUAL_ZERO_DOUBLE)
+            new DoubleParameter(WEIGHT_DECAY_ID)
+                    .addConstraint(CommonConstraints.GREATER_EQUAL_ZERO_DOUBLE)
                     .grab(config, x -> weight_decay = x);
 
             new RandomParameter(RANDOM_SEED).grab(config, x -> random = x);
