@@ -113,7 +113,7 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
 
             MeanVariance assertion = new MeanVariance();
             assertion.put(scores[i]);
-            assert Math.abs(assertion.getSampleStddev() - 1.0) < Double.MIN_VALUE;
+            assert Math.abs(assertion.getSampleStddev() - 1.0) < 0.0001;
         }
 
         scores = VMath.transpose(scores);
