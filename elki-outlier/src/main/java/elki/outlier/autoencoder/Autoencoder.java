@@ -40,12 +40,33 @@ public class Autoencoder<V extends NumberVector> implements OutlierAlgorithm {
      * Ratio of per-layer dimension decrease in autoencoder.
      */
     protected double alpha;
+    /**
+     * The Training length for each autoencoder.
+     */
     protected int iterations;
+    /**
+     * Parameter of RMSProp optimizer
+     */
     protected double rho;
+    /**
+     * Parameter of RMSProp optimizer
+     */
     protected double learningRate;
+    /**
+     * Number of Networks used in the ensemble.
+     */
     protected int numberNetworks;
+    /**
+     * Fraction of Training data used on a single outoencoder
+     */
     protected double maxSizeFraction;
+    /**
+     * Proportion by which dimension of outerencoder shrink in each Layer.
+     */
     protected double adaptiveSizeRate;
+    /**
+     * Parameter of RMSProp optimizer
+     */
     protected double weightDecay;
 
     protected Random random;
